@@ -1,42 +1,27 @@
-import os, threading, logging, asyncio
+import os, threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import google.generativeai as genai
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
 
-# Setup Logging
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-
-# Server Penjaga agar Koyeb tetap 'Healthy'
+# Agar Koyeb tidak mematikan bot (Port 8000)
 class HealthCheck(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200); self.end_headers(); self.wfile.write(b"OK")
 
 def run_health():
-    port = int(os.environ.get("PORT", 8000))
-    HTTPServer(('0.0.0.0', port), HealthCheck).serve_forever()
+    HTTPServer(('0.0.0.0', int(os.environ.get("PORT", 8000))), HealthCheck).serve_forever()
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message or not update.message.text: return
-    try:
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        response = model.generate_content(update.message.text)
-        await update.message.reply_text(response.text)
-    except Exception as e:
-        logging.error(f"Error Gemini: {e}")
+async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Ini fungsi balas chat
+    model = genai.GenerativeModel("gemini-1.5-flash")
+    response = model.generate_content(update.message.text)
+    await update.message.reply_text(response.text)
 
 if __name__ == '__main__':
-    # Jalankan server penjaga di background
     threading.Thread(target=run_health, daemon=True).start()
-    
-    # Konfigurasi API Gemini
-    api_key = os.environ.get("GEMINI_API_KEY")
-    genai.configure(api_key=api_key)
-    
-    # Konfigurasi Bot Telegram
-    token = os.environ.get("TELEGRAM_TOKEN")
-    app = ApplicationBuilder().token(token).build()
-    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
-    
-    logging.info("BOT SUDAH NYALA DAN SIAP!")
+    genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+    app = ApplicationBuilder().token(os.environ.get("TELEGRAM_TOKEN")).build()
+    app.add_handler(MessageHandler(filters.TEXT, chat))
+    print("BOT SUDAH NYALA!")
     app.run_polling()
