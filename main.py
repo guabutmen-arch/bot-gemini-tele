@@ -6,7 +6,7 @@ import google.generativeai as genai
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
 
-# --- SERVER PENJAGA AGAR KOYEB SEHAT ---
+# --- INI KUNCI AGAR KOYEB TIDAK MATI ---
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -27,14 +27,18 @@ model = genai.GenerativeModel("gemini-1.5-flash")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message and update.message.text:
-        response = model.generate_content(update.message.text)
-        await update.message.reply_text(response.text)
+        try:
+            response = model.generate_content(update.message.text)
+            await update.message.reply_text(response.text)
+        except Exception as e:
+            print(f"Error Gemini: {e}")
 
 if __name__ == '__main__':
-    # Menjalankan server penjaga di latar belakang
+    # Jalankan server penjaga port 8000
     threading.Thread(target=run_health_server, daemon=True).start()
     
-    # Menjalankan bot
+    # Jalankan Bot Telegram
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-    app.add_handler(MessageHandler(filters.TEXT, handle_message))
+    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
+    print("Bot sedang berjalan...")
     app.run_polling()
