@@ -17,13 +17,19 @@ def run_health():
 async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text: return
     try:
-        # Kita gunakan model 'gemini-1.5-flash' yang paling stabil untuk API baru
-        model = genai.GenerativeModel("gemini-1.5-flash") 
+        # Menggunakan nama model yang paling update dan didukung
+        model = genai.GenerativeModel("gemini-1.5-flash-latest") 
         response = model.generate_content(update.message.text)
         await update.message.reply_text(response.text)
     except Exception as e:
         logging.error(f"Gemini Error: {e}")
-        await update.message.reply_text(f"Error: {str(e)}")
+        # Jika masih gagal, otomatis coba model alternatif
+        try:
+            model = genai.GenerativeModel("gemini-pro")
+            response = model.generate_content(update.message.text)
+            await update.message.reply_text(response.text)
+        except:
+            await update.message.reply_text(f"Waduh, masih error: {str(e)}")
 
 if __name__ == '__main__':
     threading.Thread(target=run_health, daemon=True).start()
@@ -33,4 +39,3 @@ if __name__ == '__main__':
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), chat))
     logging.info("BOT SUDAH AKTIF!")
     app.run_polling(drop_pending_updates=True)
-    
