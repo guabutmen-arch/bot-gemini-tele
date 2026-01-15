@@ -16,20 +16,25 @@ def run_health():
 
 async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text: return
-    try:
-        # Menggunakan nama model yang paling update dan didukung
-        model = genai.GenerativeModel("gemini-1.5-flash-latest") 
-        response = model.generate_content(update.message.text)
-        await update.message.reply_text(response.text)
-    except Exception as e:
-        logging.error(f"Gemini Error: {e}")
-        # Jika masih gagal, otomatis coba model alternatif
+    
+    # Daftar nama model yang akan dicoba satu per satu
+    model_names = ["gemini-1.5-flash", "gemini-pro", "models/gemini-1.5-flash", "models/gemini-pro"]
+    
+    response_sent = False
+    for name in model_names:
         try:
-            model = genai.GenerativeModel("gemini-pro")
+            logging.info(f"Mencoba model: {name}")
+            model = genai.GenerativeModel(name)
             response = model.generate_content(update.message.text)
             await update.message.reply_text(response.text)
-        except:
-            await update.message.reply_text(f"Waduh, masih error: {str(e)}")
+            response_sent = True
+            break # Berhenti jika berhasil
+        except Exception as e:
+            logging.error(f"Gagal pakai {name}: {e}")
+            continue
+            
+    if not response_sent:
+        await update.message.reply_text("Duh, semua model Gemini di akun kamu menolak akses. Coba cek API Key lagi di Google AI Studio.")
 
 if __name__ == '__main__':
     threading.Thread(target=run_health, daemon=True).start()
@@ -37,5 +42,5 @@ if __name__ == '__main__':
     token = os.environ.get("TELEGRAM_TOKEN")
     app = ApplicationBuilder().token(token).build()
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), chat))
-    logging.info("BOT SUDAH AKTIF!")
+    logging.info("BOT RE-STARTED!")
     app.run_polling(drop_pending_updates=True)
